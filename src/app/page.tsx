@@ -37,14 +37,24 @@ export default function Home() {
       sql += ' ORDER BY created_at DESC';
       
       const result = await db.execute(sql);
-      setTasks(result.rows as Task[]);
+      const rows = result.rows as unknown as Array<Record<string, unknown>>;
+      const tasks = rows.map((r) => ({
+        id: String(r.id ?? ''),
+        title: String(r.title ?? ''),
+        description: r.description === null || r.description === undefined ? null : String(r.description),
+        priority: (r.priority === 'low' || r.priority === 'medium' || r.priority === 'high') ? r.priority : 'medium',
+        status: (r.status === 'todo' || r.status === 'in_progress' || r.status === 'done') ? r.status : 'todo',
+        due_date: r.due_date === null || r.due_date === undefined ? null : String(r.due_date),
+        created_at: String(r.created_at ?? ''),
+      } satisfies Task));
+      setTasks(tasks);
     } catch (error) {
       console.error('Failed to load tasks:', error);
     }
     setIsLoading(false);
   }
 
-  async function addTask(taskData: any) {
+  async function addTask(taskData: { title: string; description?: string; priority: Task['priority']; due_date?: string | null; }) {
     try {
       await db.execute({
         sql: 'INSERT INTO tasks (title, description, priority, due_date, status) VALUES (?, ?, ?, ?, ?)',
